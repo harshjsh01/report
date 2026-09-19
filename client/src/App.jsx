@@ -6,6 +6,8 @@ import KanbanView from './components/KanbanView';
 import ProjectDetailModal from './components/ProjectDetailModal';
 import SettingsModal from './components/SettingsModal';
 import ProgressGraph from './components/ProgressGraph';
+import UserDirectory from './components/UserDirectory';
+import RequestProgressModal from './components/RequestProgressModal';
 import { 
   FolderGit2, 
   Filter, 
@@ -14,7 +16,8 @@ import {
   AlertCircle,
   PlusCircle,
   Trophy,
-  UserCheck
+  UserCheck,
+  Users
 } from 'lucide-react';
 import GithubIcon from './components/GithubIcon';
 
@@ -24,6 +27,11 @@ export default function App() {
   const [settings, setSettings] = useState({ githubUsername: '', hasToken: false });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Community & Directory State
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'community'
+  const [viewingUser, setViewingUser] = useState(null); // null (self) or peer username
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
   // Filters & UI state
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,6 +97,22 @@ export default function App() {
       setError(err.message);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Inspect another user's projects
+  const handleSelectUser = (username) => {
+    setViewingUser(username);
+    setActiveTab('dashboard');
+    loadProjects(username, false);
+  };
+
+  // Clear peer inspection and return to own projects
+  const handleClearViewingUser = () => {
+    setViewingUser(null);
+    setActiveTab('dashboard');
+    if (settings.githubUsername) {
+      loadProjects(settings.githubUsername, false);
     }
   };
 
@@ -279,11 +303,16 @@ export default function App() {
         setSearchQuery={setSearchQuery}
         viewMode={viewMode}
         setViewMode={setViewMode}
-        onRefresh={() => loadProjects(settings.githubUsername, true)}
+        onRefresh={() => loadProjects(viewingUser || settings.githubUsername, true)}
         isLoading={isLoading}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        currentUser={settings.githubUsername}
+        currentUser={viewingUser || settings.githubUsername}
         hasToken={settings.hasToken}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenRequestModal={() => setIsRequestModalOpen(true)}
+        viewingUser={viewingUser}
+        onClearViewingUser={handleClearViewingUser}
       />
 
       {/* Main Content Area */}
@@ -305,8 +334,17 @@ export default function App() {
           </div>
         )}
 
-        {/* Portfolio Stats Bar */}
-        {repos.length > 0 && <StatsOverview stats={computedStats} />}
+        {/* Tab View: Community Directory vs Projects Dashboard */}
+        {activeTab === 'community' ? (
+          <UserDirectory
+            onSelectUser={handleSelectUser}
+            onOpenRequestModal={() => setIsRequestModalOpen(true)}
+            currentUser={settings.githubUsername}
+          />
+        ) : (
+          <>
+            {/* Portfolio Stats Bar */}
+            {repos.length > 0 && <StatsOverview stats={computedStats} />}
 
         {/* Interactive Visual Graph & Progress Matrix */}
         {repos.length > 0 && (
@@ -449,6 +487,8 @@ export default function App() {
             onSelectProject={setSelectedProject}
           />
         )}
+        </>
+      )}
 
       </main>
 
@@ -460,6 +500,14 @@ export default function App() {
           <span className="text-emerald-400 font-semibold">Drive all projects to 100% & Version 1.0</span>
         </p>
       </footer>
+
+      {/* Request Progress Check Modal */}
+      <RequestProgressModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        currentUsername={settings.githubUsername}
+        onInspectUser={handleSelectUser}
+      />
 
       {/* Project Detail Modal */}
       {selectedProject && (

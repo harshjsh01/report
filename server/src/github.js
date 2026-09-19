@@ -33,6 +33,37 @@ export class GitHubService {
   }
 
   /**
+   * Fetch public user profile for any GitHub username
+   */
+  async getUserProfile(username) {
+    if (!username) return null;
+    try {
+      const res = await this.client.get(`/users/${username}`);
+      return {
+        username: res.data.login,
+        name: res.data.name || res.data.login,
+        avatar_url: res.data.avatar_url,
+        bio: res.data.bio || '',
+        html_url: res.data.html_url,
+        public_repos: res.data.public_repos || 0,
+        followers: res.data.followers || 0,
+        company: res.data.company || '',
+        location: res.data.location || ''
+      };
+    } catch (err) {
+      return {
+        username,
+        name: username,
+        avatar_url: `https://github.com/${username}.png`,
+        bio: '',
+        html_url: `https://github.com/${username}`,
+        public_repos: 0,
+        followers: 0
+      };
+    }
+  }
+
+  /**
    * Fetch ALL repositories for user (owned, private, collaborated, organization, and contributed)
    */
   async getRepositories(username = null) {

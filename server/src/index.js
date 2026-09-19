@@ -232,6 +232,29 @@ app.get('/api/repos', async (req, res) => {
     Storage.updateSettings({ lastSync: new Date().toISOString() });
 
     const stats = calculatePortfolioStats(enriched, localProjects);
+
+    if (targetUser) {
+      const langMap = {};
+      enriched.forEach(r => {
+        if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1;
+      });
+      const topLanguages = Object.entries(langMap).sort((a, b) => b[1] - a[1]).slice(0, 4).map(e => e[0]);
+      Storage.saveTrackedUser({
+        username: targetUser,
+        name: targetUser,
+        avatar_url: `https://github.com/${targetUser}.png`,
+        totalRepos: stats.totalRepos,
+        v1Complete: stats.v1Complete,
+        completed: stats.completed,
+        inProgress: stats.inProgress,
+        needsPolish: stats.needsPolish,
+        totalFinished: stats.totalFinished,
+        completionPercentage: stats.completionPercentage,
+        totalStars: stats.totalStars,
+        topLanguages
+      });
+    }
+
     res.json({ repos: enriched, stats, cached: false });
   } catch (error) {
     console.error('Error fetching repos:', error.message);
@@ -436,6 +459,116 @@ app.get('/api/stats', (req, res) => {
   const repos = cachedRepos || [];
   const stats = calculatePortfolioStats(repos, localProjects);
   res.json(stats);
+});
+
+// -------------------------------------------------------------
+// COMMUNITY & MULTI-USER DIRECTORY ENDPOINTS
+// -------------------------------------------------------------
+app.get('/api/users', (req, res) => {
+  const users = Storage.getTrackedUsers();
+  res.json({ users });
+});
+
+app.post('/api/users/request-check', async (req, res) => {
+  const { targetUsername, requesterName, message } = req.body;
+
+  if (!targetUsername || !targetUsername.trim()) {
+    return res.status(400).json({ error: 'Target GitHub username is required' });
+  }
+
+  const cleanTarget = targetUsername.trim().replace(/^@/, '');
+  const cleanRequester = (requesterName || '').trim() || 'Anonymous Developer';
+
+  try {
+    const gh = getService();
+    // 1. Fetch user profile from GitHub
+    const profile = await gh.getUserProfile(cleanTarget);
+
+    // 2. Fetch their repositories
+    const rawRepos = await gh.getRepositories(cleanTarget);
+    const localProjects = Storage.getAllRepoData();
+
+    // 3. Auto-detect completion status on each repo
+    const enrichedRepos = rawRepos.map(repo => {
+      const local = localProjects[repo.full_name] || {};
+      const auto = gh.autoDetectCompletionStatus(repo);
+      const assignedStatus = local.status || auto.status;
+
+      let progressPercent = 50;
+      if (assignedStatus === 'v1_complete' || assignedStatus === 'completed') progressPercent = 100;
+      else if (assignedStatus === 'needs_polish') progressPercent = 85;
+      else if (assignedStatus === 'paused') progressPercent = 40;
+      else if (assignedStatus === 'archived') progressPercent = 100;
+      else if (assignedStatus === 'in_progress') progressPercent = 60;
+
+      return {
+        ...repo,
+        autoStatus: auto.status,
+        autoReason: auto.reason,
+        status: assignedStatus,
+        progressPercent
+      };
+    });
+
+    // 4. Calculate their portfolio stats
+    const stats = calculatePortfolioStats(enrichedRepos, localProjects);
+
+    // 5. Aggregate top languages
+    const langMap = {};
+    enrichedRepos.forEach(r => {
+      if (r.language) langMap[r.language] = (langMap[r.language] || 0) + 1;
+    });
+    const topLanguages = Object.entries(langMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(entry => entry[0]);
+
+    // 6. Save developer to trackedUsers
+    const savedUser = Storage.saveTrackedUser({
+      username: profile.username,
+      name: profile.name,
+      avatar_url: profile.avatar_url,
+      bio: profile.bio,
+      html_url: profile.html_url,
+      totalRepos: stats.totalRepos,
+      v1Complete: stats.v1Complete,
+      completed: stats.completed,
+      inProgress: stats.inProgress,
+      needsPolish: stats.needsPolish,
+      totalFinished: stats.totalFinished,
+      completionPercentage: stats.completionPercentage,
+      totalStars: stats.totalStars,
+      topLanguages
+    });
+
+    // 7. Record the request
+    const newRequest = Storage.createProgressRequest({
+      targetUsername: profile.username,
+      requesterName: cleanRequester,
+      message: (message || '').trim(),
+      resultsSnapshot: {
+        totalRepos: stats.totalRepos,
+        v1Complete: stats.v1Complete,
+        completed: stats.completed,
+        completionPercentage: stats.completionPercentage
+      }
+    });
+
+    res.json({
+      success: true,
+      user: savedUser,
+      request: newRequest,
+      stats
+    });
+  } catch (error) {
+    console.error(`Error checking progress for @${cleanTarget}:`, error.message);
+    res.status(500).json({ error: `Failed to inspect @${cleanTarget}: ${error.message}` });
+  }
+});
+
+app.get('/api/progress-requests', (req, res) => {
+  const requests = Storage.getProgressRequests();
+  res.json({ requests });
 });
 
 // Serve frontend if built
