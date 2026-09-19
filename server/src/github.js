@@ -84,7 +84,7 @@ export class GitHubService {
         }
       }
 
-      // 2. Also fetch public repos for username(s) (supports comma-separated usernames like "harshjsh01, Harshjsh02")
+      // 2. Also fetch public repos for username(s) (supports comma-separated usernames like "user1, user2")
       const usernames = username
         ? username.split(',').map(u => u.trim()).filter(Boolean)
         : [];
