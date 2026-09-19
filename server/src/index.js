@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Storage } from './storage.js';
 import { GitHubService } from './github.js';
@@ -573,12 +574,18 @@ app.get('/api/progress-requests', (req, res) => {
 
 // Serve frontend if built
 const clientDist = path.join(__dirname, '../../client/dist');
-app.use(express.static(clientDist));
+const indexPath = path.join(clientDist, 'index.html');
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+}
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ error: 'Endpoint not found' });
   }
-  res.sendFile(path.join(clientDist, 'index.html'));
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  res.json({ message: 'GitPulse API Server is running. Build frontend with `npm run build` in /client.' });
 });
 
 app.listen(PORT, () => {

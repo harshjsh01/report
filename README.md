@@ -1,6 +1,6 @@
 # 🚀 GitPulse — GitHub Project Progress & Completion Hub
 
-> An automated GitHub portfolio progress tracker and completion hub. Connect your GitHub repositories, inspect **all markdown specs (`TODO.md`, `CONTEXT.md`, `ERRORS.md`, `LOGS.md`, `README.md`)**, audit all **Pull Requests & Issues**, detect whether you have committed to each project, and drive every repository to **"Complete"** or **"Version 1.0 Complete"**!
+> An automated GitHub portfolio progress tracker, completion hub, and community directory. Connect your GitHub repositories, inspect **all markdown specs (`TODO.md`, `CONTEXT.md`, `ERRORS.md`, `LOGS.md`, `README.md`)**, audit all **Pull Requests & Issues**, detect whether you have committed to each project, and drive every repository to **"Complete"** or **"Version 1.0 Complete"**!
 
 ---
 
@@ -16,12 +16,23 @@
   - 📖 **Documentation**: `README.md`, `CONTRIBUTING.md`.
 - Read and inspect the full content of any discovered document directly from the dashboard!
 
-### 2. 🔍 Comprehensive PR & Issue Audit
+### 2. 👥 Community Progress Directory & Peer Checks
+- **Community Hub**: Browse and search all tracked developers and team members.
+- **Peer Check Requests**: 1-click audit of any peer or collaborator's public repositories, computing completion percentage and technology stack in real time.
+- **Activity Feed**: View recent progress checks logged across the community.
+
+### 3. 🎨 System Theme & Light Theme Support
+- **Automatic OS Detection**: Detects your operating system's color scheme (`prefers-color-scheme: light/dark`) by default.
+- **Light Theme**: Clean, accessible high-contrast palette with soft backgrounds and emerald accents.
+- **Dark Theme**: Midnight palette designed for low-light coding sessions.
+- **Theme Switcher**: 1-click toggle in the navbar between **System**, **Light**, and **Dark** modes.
+
+### 4. 🔍 Comprehensive PR & Issue Audit
 - **Pull Requests**: Inspects all open, merged, and closed PRs with review status, author avatars, and links.
 - **Issues**: Tracks all open and closed issues, labels (bugs, enhancements), and discussion comment counts.
 - **Milestones**: Monitors GitHub Milestones with percentage completion progress bars.
 
-### 3. 💻 Contribution & Commit Verification
+### 5. 💻 Contribution & Commit Verification
 - **"Committed by You" Detector**:
   - Automatically identifies whether you have committed to each repository.
   - Discovers repositories you own, collaborate on, or contributed to externally.
@@ -30,11 +41,7 @@
     - ⚪ **No Commits by You Yet** (unstarted or scaffolded repos)
     - 🤝 **External Contributions & Collaborations**
 
-### 4. ⚙️ CI Workflows & Language Breakdown
-- **GitHub Actions**: Real-time status of CI workflow runs (Passing / Failing / In Progress).
-- **Code Composition**: Byte-accurate language breakdown bars (e.g. 70% TypeScript, 20% Python, 10% CSS).
-
-### 5. 🏆 Drive to Completion & Version 1.0
+### 6. 🏆 Drive to Completion & Version 1.0
 - **Project Statuses**:
   - 🚀 **In Progress**
   - 🔍 **Needs Polish**
@@ -50,40 +57,69 @@
 
 ## 🛠️ Quick Start
 
-### 1. Launch the Application
-The full-stack application is pre-built and running at:
-- **Web App**: [http://localhost:5000](http://localhost:5000)
-
-To start development mode with hot-reloading:
+### 1. Install & Run
 ```bash
+# Clone the repository
+git clone https://github.com/harshjsh01/report.git
+cd report
+
+# Install dependencies for root, server, and client
+npm run install-all
+
+# Start both backend and frontend concurrently
 npm run dev
 ```
-- **Backend API**: `http://localhost:5000`
-- **Vite Dev Frontend**: `http://localhost:3000`
 
-### 2. Configure GitHub
-1. Open the web interface at `http://localhost:5000`.
-2. Click **Connect GitHub** in the top navigation bar.
-3. Enter your **GitHub Username** (e.g. `torvalds` or your handle).
-4. *(Optional)* Paste a **Personal Access Token (PAT)** with `repo` scope to inspect private repos and publish releases directly from the UI.
+- **Vite Dev Frontend**: `http://localhost:3000`
+- **Backend API**: `http://localhost:5000`
+
+### 2. Build for Production
+```bash
+# Build frontend
+npm run build
+
+# Start production server (serves frontend + API on single port)
+npm start
+```
+Open `http://localhost:5000`.
 
 ---
 
-## 📁 Architecture
+## 🚀 Deployment
+
+GitPulse can be deployed to any cloud provider in minutes with **zero hardcoding**:
+
+- **Render**: One-click blueprint with `render.yaml` (free tier supported).
+- **Railway**: Automatic Dockerfile detection.
+- **Fly.io**: Global microVM deploy via `fly launch`.
+- **Docker**: Containerized deployment with multi-stage `Dockerfile` and `docker-compose.yml`.
+- **VPS (Ubuntu/Debian)**: PM2 + Nginx reverse proxy.
+
+👉 See the complete [Deployment & Community Distribution Guide](docs/DEPLOYMENT.md) for full instructions.
+
+---
+
+## 📁 Project Architecture
 
 ```
 .
 ├── client/                     # Vite + React 18 + Tailwind CSS Frontend
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Navbar.jsx              # Header, search, sync & credentials
+│   │   │   ├── Navbar.jsx              # Header, search, tabs, sync, settings & theme
+│   │   │   ├── ThemeToggle.jsx         # System / Light / Dark mode switcher
 │   │   │   ├── StatsOverview.jsx       # Portfolio KPIs & completion rate
+│   │   │   ├── ProgressGraph.jsx       # Interactive SVG donut, matrix & stack
 │   │   │   ├── ProjectCard.jsx         # Card with commit badge & quick status
 │   │   │   ├── ProjectDetailModal.jsx  # Tabs: Specs, PRs, Issues, Commits, CI, v1
 │   │   │   ├── KanbanView.jsx          # Stage-based Kanban board
+│   │   │   ├── UserDirectory.jsx       # Community progress directory
+│   │   │   ├── RequestProgressModal.jsx# Peer progress inspection modal
 │   │   │   ├── SettingsModal.jsx       # GitHub username & PAT setup
 │   │   │   └── GithubIcon.jsx          # Crisp GitHub mark
-│   │   ├── utils/confetti.js           # Confetti celebration bursts
+│   │   ├── utils/
+│   │   │   ├── confetti.js             # Confetti celebration bursts
+│   │   │   └── theme.js                # System theme detection & OS listener
 │   │   ├── App.jsx                     # State coordination & filtering
 │   │   ├── index.css
 │   │   └── main.jsx
@@ -91,11 +127,32 @@ npm run dev
 │
 ├── server/                     # Node.js + Express Backend
 │   ├── src/
-│   │   ├── index.js            # Express API & static frontend server
+│   │   ├── index.js            # Express API & unified static server
 │   │   ├── github.js           # Multi-MD scanner, PR/Issue auditor, commit checker
 │   │   └── storage.js          # Local JSON database engine
-│   ├── data/                   # Persistent storage (projects.json)
+│   ├── data/                   # Persistent runtime data (gitignored)
+│   ├── .env.example
 │   └── package.json
 │
-└── package.json                # Unified workspace scripts
+├── docs/                       # Complete Technical Documentation
+│   ├── ARCHITECTURE.md
+│   ├── COMMUNITY_DIRECTORY.md
+│   ├── COMPLETION_DETECTION.md
+│   ├── DEPLOYMENT.md
+│   ├── INTERACTIVE_GRAPHS.md
+│   ├── MULTI_MARKDOWN_SCANNER.md
+│   └── SETUP_AND_USAGE.md
+│
+├── Dockerfile                  # Multi-stage production container
+├── docker-compose.yml          # Container orchestration
+├── render.yaml                 # Render.com blueprint configuration
+└── package.json                # Root orchestration scripts
 ```
+
+---
+
+## 🔒 Security & Privacy
+
+- **Zero Hardcoded Secrets**: All authentication tokens and handles are dynamically provided at runtime.
+- **Gitignored Credentials**: `.env` and `server/data/*.json` are excluded from version control.
+- **Dynamic Multi-Tenant**: Anyone can clone and self-host for their own personal or organization portfolio.

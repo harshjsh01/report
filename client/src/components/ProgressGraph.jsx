@@ -1,18 +1,15 @@
 import React, { useState } from 'react';
 import { 
   BarChart3, 
-  PieChart as PieChartIcon, 
-  Sparkles, 
   Trophy, 
   CheckCircle2, 
   Clock, 
   AlertTriangle, 
   PauseCircle, 
-  Archive,
-  ChevronDown,
-  ChevronUp,
-  Layers,
-  ArrowUpRight
+  Archive, 
+  ChevronDown, 
+  ChevronUp, 
+  ArrowUpRight 
 } from 'lucide-react';
 
 const STATUS_COLORS = {
@@ -86,21 +83,21 @@ export default function ProgressGraph({
     });
 
   return (
-    <div className="mb-8 bg-[#0e1424] border border-slate-800 rounded-3xl overflow-hidden shadow-xl transition-all">
+    <div className="mb-8 bg-white dark:bg-[#0e1424] border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm dark:shadow-xl transition-all">
       {/* Graph Header with Toggle & Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-900/60 gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-900/60 gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-emerald-500/20">
             <BarChart3 className="w-5 h-5 text-slate-950" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-white tracking-tight">Interactive Portfolio Progress Graphs</h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">Interactive Portfolio Progress Graphs</h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                 Live Interactive Visualizer
               </span>
             </div>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Click on any graph slice, bar, or project to instantly filter or inspect its complete status
             </p>
           </div>
@@ -108,33 +105,33 @@ export default function ProgressGraph({
 
         <div className="flex items-center gap-2 justify-between sm:justify-end">
           {/* Tabs */}
-          <div className="flex items-center bg-slate-800/80 rounded-xl p-1 text-xs border border-slate-700/60">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 rounded-xl p-1 text-xs border border-slate-200 dark:border-slate-700/60">
             <button
               onClick={() => setActiveTab('completion')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              className={`px-3 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                 activeTab === 'completion'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white dark:bg-emerald-600 text-emerald-700 dark:text-white shadow-sm font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
               }`}
             >
               Status Donut
             </button>
             <button
               onClick={() => setActiveTab('matrix')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              className={`px-3 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                 activeTab === 'matrix'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white dark:bg-emerald-600 text-emerald-700 dark:text-white shadow-sm font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
               }`}
             >
               Project Matrix
             </button>
             <button
               onClick={() => setActiveTab('languages')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
+              className={`px-3 py-1 rounded-lg font-medium transition-all cursor-pointer ${
                 activeTab === 'languages'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+                  ? 'bg-white dark:bg-emerald-600 text-emerald-700 dark:text-white shadow-sm font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white'
               }`}
             >
               Tech Stack
@@ -143,7 +140,7 @@ export default function ProgressGraph({
 
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
             title={isOpen ? 'Collapse graph' : 'Expand graph'}
           >
             {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -169,7 +166,7 @@ export default function ProgressGraph({
                       cy="80"
                       r={radius}
                       fill="transparent"
-                      stroke="#1e293b"
+                      className="stroke-slate-200 dark:stroke-slate-800"
                       strokeWidth={strokeWidth}
                     />
                     {/* Slices */}
@@ -201,12 +198,12 @@ export default function ProgressGraph({
 
                   {/* Center Text */}
                   <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none">
-                    <span className="text-3xl font-black text-white">{total}</span>
-                    <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Repos</span>
+                    <span className="text-3xl font-black text-slate-900 dark:text-white">{total}</span>
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Repos</span>
                   </div>
                 </div>
 
-                <p className="text-[11px] text-slate-400 text-center mt-3">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 text-center mt-3">
                   Click any segment or badge below to filter projects
                 </p>
               </div>
@@ -225,19 +222,19 @@ export default function ProgressGraph({
                       onClick={() => onSelectStatusFilter(isSelected ? 'all' : key)}
                       className={`p-3.5 rounded-2xl border cursor-pointer transition-all duration-200 flex flex-col justify-between ${
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-950/30 shadow-lg shadow-emerald-500/10'
-                          : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 hover:border-slate-700'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-md'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="p-1.5 rounded-lg" style={{ backgroundColor: meta.bg, color: meta.hex }}>
                           <Icon className="w-3.5 h-3.5" />
                         </div>
-                        <span className="text-xs font-mono font-bold text-slate-400">{pct}%</span>
+                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{pct}%</span>
                       </div>
                       <div>
-                        <div className="text-xl font-extrabold text-white">{count}</div>
-                        <div className="text-xs font-medium text-slate-300 mt-0.5">{meta.label}</div>
+                        <div className="text-xl font-extrabold text-slate-900 dark:text-white">{count}</div>
+                        <div className="text-xs font-medium text-slate-600 dark:text-slate-300 mt-0.5">{meta.label}</div>
                       </div>
                     </div>
                   );
@@ -250,7 +247,7 @@ export default function ProgressGraph({
           {/* TAB 2: PROJECT COMPLETION MATRIX */}
           {activeTab === 'matrix' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-1">
                 <span>Click any project bar to open its complete detail inspector & specs</span>
                 <span className="font-mono">Showing {projects.length} evaluated repositories</span>
               </div>
@@ -265,15 +262,15 @@ export default function ProgressGraph({
                     <div
                       key={p.id}
                       onClick={() => onSelectProject(p)}
-                      className="p-3 rounded-xl bg-slate-900/60 hover:bg-slate-800/90 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all group flex flex-col justify-between"
+                      className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800/90 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 cursor-pointer transition-all group flex flex-col justify-between"
                     >
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="flex items-center gap-2 truncate">
-                          <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition-colors truncate">
+                          <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
                             {p.name}
                           </span>
                           {p.homepage && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 truncate">
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 truncate font-medium">
                               Live App
                             </span>
                           )}
@@ -282,12 +279,12 @@ export default function ProgressGraph({
                           <span className="text-[11px] font-mono font-bold" style={{ color: meta.hex }}>
                             {percent}%
                           </span>
-                          <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-white transition-colors" />
+                          <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white transition-colors" />
                         </div>
                       </div>
 
                       {/* Progress bar */}
-                      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden mb-1.5">
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden mb-1.5">
                         <div
                           className="h-1.5 rounded-full transition-all duration-300"
                           style={{
@@ -311,7 +308,7 @@ export default function ProgressGraph({
           {/* TAB 3: LANGUAGES TECH STACK */}
           {activeTab === 'languages' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-xs text-slate-400 pb-1">
+              <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pb-1">
                 <span>Click any language to filter projects written in that technology</span>
                 <span className="font-mono">{sortedLanguages.length} main languages detected</span>
               </div>
@@ -327,16 +324,16 @@ export default function ProgressGraph({
                       onClick={() => onSelectLanguageFilter(isSelected ? 'all' : lang)}
                       className={`p-3.5 rounded-2xl border cursor-pointer transition-all duration-200 flex flex-col justify-between ${
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-950/30 shadow-md'
-                          : 'border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 hover:border-slate-700'
+                          ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-md'
+                          : 'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold text-white">{lang}</span>
-                        <span className="text-xs font-mono font-semibold text-emerald-400">{pct}%</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">{lang}</span>
+                        <span className="text-xs font-mono font-semibold text-emerald-600 dark:text-emerald-400">{pct}%</span>
                       </div>
-                      <div className="text-lg font-black text-slate-200">{count} repos</div>
-                      <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden mt-2">
+                      <div className="text-lg font-black text-slate-800 dark:text-slate-200">{count} repos</div>
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden mt-2">
                         <div
                           className="h-1.5 rounded-full bg-gradient-to-r from-teal-400 to-emerald-500"
                           style={{ width: `${pct}%` }}

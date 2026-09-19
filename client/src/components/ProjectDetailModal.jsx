@@ -230,26 +230,26 @@ export default function ProjectDetailModal({
   const userCommitActivity = details?.userCommitActivity || { userCommitted: false, userCommitCount: 0, recentUserCommits: [] };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-black/80 backdrop-blur-sm animate-fadeIn">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-black/60 dark:bg-black/80 backdrop-blur-sm animate-fadeIn">
       <div 
-        className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-[#0f172a] border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden text-slate-100"
+        className="relative w-full max-w-4xl max-h-[92vh] flex flex-col bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden text-slate-900 dark:text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/80">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white font-bold">
               <GithubIcon className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold text-white tracking-tight">{project.name}</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{project.name}</h2>
                 <a
                   href={project.html_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-slate-400 hover:text-emerald-400 flex items-center gap-1"
+                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1 cursor-pointer"
                 >
                   <span>{project.full_name}</span>
                   <ExternalLink className="w-3 h-3" />
@@ -257,41 +257,41 @@ export default function ProjectDetailModal({
 
                 {/* You Committed Badge */}
                 {project.user_committed ? (
-                  <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
                     <UserCheck className="w-3 h-3" /> You Committed
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                  <span className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
                     <UserX className="w-3 h-3" /> No commits by you
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 line-clamp-1">{project.description || 'No description provided'}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{project.description || 'No description provided'}</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex items-center gap-1 px-6 border-b border-slate-800 bg-[#0c1222] overflow-x-auto text-xs py-2">
+        <div className="flex items-center gap-1 px-6 border-b border-slate-200 dark:border-slate-800 bg-slate-100/80 dark:bg-[#0c1222] overflow-x-auto text-xs py-2">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'overview'
                 ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
             }`}
           >
             <Activity className="w-3.5 h-3.5" />
             <span>Overview & Tasks</span>
             {totalTasks > 0 && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-700/60 font-mono">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-700/60 font-mono text-white">
                 {totalCompleted}/{totalTasks}
               </span>
             )}
@@ -299,16 +299,16 @@ export default function ProjectDetailModal({
 
           <button
             onClick={() => setActiveTab('docs')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'docs'
                 ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
             <span>Docs, Context & TODOs</span>
             {(details?.readme?.allMarkdownFiles || []).length > 0 && (
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-800 font-mono text-emerald-400">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 font-mono text-emerald-600 dark:text-emerald-400">
                 {(details?.readme?.allMarkdownFiles || []).length} MD
               </span>
             )}
@@ -316,40 +316,40 @@ export default function ProjectDetailModal({
 
           <button
             onClick={() => setActiveTab('prs')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'prs'
                 ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
             }`}
           >
             <GitPullRequest className="w-3.5 h-3.5" />
             <span>Pull Requests</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-800 font-mono text-slate-300">
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 font-mono text-slate-700 dark:text-slate-300">
               {prs.openCount} open
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('issues')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'issues'
                 ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
             }`}
           >
             <CircleDot className="w-3.5 h-3.5" />
             <span>Issues</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-800 font-mono text-slate-300">
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 dark:bg-slate-800 font-mono text-slate-700 dark:text-slate-300">
               {issues.openCount} open
             </span>
           </button>
 
           <button
             onClick={() => setActiveTab('commits')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'commits'
                 ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
             }`}
           >
             <GitCommit className="w-3.5 h-3.5" />
@@ -358,10 +358,10 @@ export default function ProjectDetailModal({
 
           <button
             onClick={() => setActiveTab('workflows')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'workflows'
                 ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-800'
             }`}
           >
             <Cpu className="w-3.5 h-3.5" />
@@ -370,10 +370,10 @@ export default function ProjectDetailModal({
 
           <button
             onClick={() => setActiveTab('v1')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium transition-all whitespace-nowrap cursor-pointer ${
               activeTab === 'v1'
                 ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
-                : 'text-amber-400 hover:bg-amber-500/10'
+                : 'text-amber-600 dark:text-amber-400 hover:bg-amber-500/10'
             }`}
           >
             <Trophy className="w-3.5 h-3.5" />
@@ -385,9 +385,9 @@ export default function ProjectDetailModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
           {/* Quick Controls Bar: Status, Priority, Target Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-900/80 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                 Current Status
               </label>
               <select
@@ -398,7 +398,7 @@ export default function ProjectDetailModal({
                   handleSaveMetadata(val, priority, targetDate, notes);
                   if (val === 'v1_complete' || val === 'completed') triggerConfetti();
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
               >
                 <option value="in_progress">🚀 In Progress</option>
                 <option value="needs_polish">🔍 Needs Polish</option>
@@ -410,7 +410,7 @@ export default function ProjectDetailModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                 Priority
               </label>
               <select
@@ -419,7 +419,7 @@ export default function ProjectDetailModal({
                   setPriority(e.target.value);
                   handleSaveMetadata(status, e.target.value, targetDate, notes);
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
               >
                 <option value="low">🟢 Low Priority</option>
                 <option value="medium">🟡 Medium Priority</option>
@@ -428,7 +428,7 @@ export default function ProjectDetailModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
                 Target Completion Date
               </label>
               <input
@@ -438,7 +438,7 @@ export default function ProjectDetailModal({
                   setTargetDate(e.target.value);
                   handleSaveMetadata(status, priority, e.target.value, notes);
                 }}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-white focus:outline-none focus:border-emerald-500"
+                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-900 dark:text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
               />
             </div>
           </div>
@@ -1172,13 +1172,13 @@ export default function ProjectDetailModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-900/80 flex items-center justify-between">
-          <div className="text-xs text-slate-500">
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 flex items-center justify-between">
+          <div className="text-xs text-slate-500 dark:text-slate-400">
             Changes auto-saved to local tracking database.
           </div>
           <button
             onClick={onClose}
-            className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold rounded-xl transition-colors"
+            className="px-5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white text-xs font-semibold rounded-xl transition-colors cursor-pointer"
           >
             Close
           </button>

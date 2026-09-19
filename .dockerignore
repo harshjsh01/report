@@ -1,0 +1,11 @@
+node_modules
+client/node_modules
+server/node_modules
+client/dist
+.git
+.github
+.env
+.env.local
+server/data/*.json
+!server/data/projects.json
+docs
