@@ -19,6 +19,7 @@ app.use(express.json());
 
 // In-memory cache for fast repo browsing
 let cachedRepos = null;
+let cachedUser = null;
 let lastFetchTime = null;
 const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes cache
 
@@ -51,6 +52,7 @@ app.post('/api/settings', (req, res) => {
   const updated = Storage.updateSettings(updates);
   // Clear cache on credentials change
   cachedRepos = null;
+  cachedUser = null;
   res.json({
     githubUsername: updated.githubUsername,
     hasToken: Boolean(updated.githubToken),
@@ -76,7 +78,7 @@ app.get('/api/repos', async (req, res) => {
     const now = Date.now();
     const gh = getService();
 
-    if (!forceRefresh && cachedRepos && lastFetchTime && (now - lastFetchTime < CACHE_TTL_MS)) {
+    if (!forceRefresh && cachedRepos && cachedUser === targetUser && lastFetchTime && (now - lastFetchTime < CACHE_TTL_MS)) {
       const localProjects = Storage.getAllRepoData();
       const enriched = cachedRepos.map(repo => {
         const local = localProjects[repo.full_name] || {};
@@ -164,6 +166,7 @@ app.get('/api/repos', async (req, res) => {
     });
 
     cachedRepos = enriched;
+    cachedUser = targetUser;
     lastFetchTime = now;
     Storage.updateSettings({ lastSync: new Date().toISOString() });
 
