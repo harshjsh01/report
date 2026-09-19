@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Key, 
@@ -10,26 +10,43 @@ import {
 import GithubIcon from './GithubIcon';
 
 export default function SettingsModal({ 
+  isOpen = true,
   currentSettings, 
+  settings,
   onSaveSettings, 
+  onSave,
   onClose 
 }) {
-  const [username, setUsername] = useState(currentSettings?.githubUsername || '');
+  const activeSettings = currentSettings || settings || {};
+  const saveFn = onSaveSettings || onSave;
+  const [username, setUsername] = useState(activeSettings.githubUsername || '');
   const [token, setToken] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [hasSaved, setHasSaved] = useState(false);
+
+  useEffect(() => {
+    if (activeSettings.githubUsername) {
+      setUsername(activeSettings.githubUsername);
+    }
+  }, [activeSettings.githubUsername]);
+
+  if (isOpen === false) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      await onSaveSettings({
-        githubUsername: username.trim(),
-        ...(token.trim() ? { githubToken: token.trim() } : {})
-      });
+      if (typeof saveFn === 'function') {
+        await saveFn({
+          githubUsername: username.trim(),
+          ...(token.trim() ? { githubToken: token.trim() } : {})
+        });
+      }
       setHasSaved(true);
       setTimeout(() => {
-        onClose();
+        if (typeof onClose === 'function') {
+          onClose();
+        }
       }, 700);
     } catch (err) {
       alert('Failed to save settings: ' + err.message);

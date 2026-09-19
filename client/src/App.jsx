@@ -581,7 +581,9 @@ export default function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
+        currentSettings={settings}
         onSave={handleSaveSettings}
+        onSaveSettings={handleSaveSettings}
       />
 
       {/* Request Progress Modal */}
