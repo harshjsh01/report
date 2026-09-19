@@ -86,13 +86,8 @@ const mockReleases = {
   releasesCount: 1
 };
 
-const mockCi = {
-  latestStatus: 'success',
-  hasActions: true
-};
-
-const healthScore = gh.calculateHealthScore(mockRepo, mockReadme, mockReleases, null, null, mockCi);
+const healthScore = gh.calculateHealthScore(mockRepo, mockReadme, mockReleases);
 console.log(`   ✓ Health score computed: ${healthScore} / 100`);
-assert.ok(healthScore >= 80, 'Score should be high for an active, documented, v1-released project with passing CI');
+assert.ok(healthScore >= 80, 'Score should be high for an active, documented, v1-released project');
 
 console.log('\n🎉 All 5 Core Verification Tests Passed Successfully!\n');

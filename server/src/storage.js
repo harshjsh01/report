@@ -19,9 +19,7 @@ const defaultState = {
     githubToken: '',
     lastSync: null
   },
-  projects: {}, // keyed by repo full_name, e.g. "owner/repo"
-  trackedUsers: {}, // keyed by lowercase username
-  progressRequests: [] // array of { id, targetUsername, requesterName, message, status, createdAt }
+  projects: {} // keyed by repo full_name, e.g. "owner/repo"
 };
 
 function readDb() {
@@ -152,78 +150,5 @@ export const Storage = {
     repo.updatedAt = new Date().toISOString();
     writeDb(db);
     return true;
-  },
-
-  // -------------------------------------------------------------
-  // MULTI-USER & COMMUNITY PROGRESS METHODS
-  // -------------------------------------------------------------
-  getTrackedUsers() {
-    const db = readDb();
-    const usersMap = db.trackedUsers || {};
-    return Object.values(usersMap).sort((a, b) => {
-      // Sort by completion percentage descending, then total repos descending
-      if (b.completionPercentage !== a.completionPercentage) {
-        return (b.completionPercentage || 0) - (a.completionPercentage || 0);
-      }
-      return (b.totalRepos || 0) - (a.totalRepos || 0);
-    });
-  },
-
-  getTrackedUser(username) {
-    if (!username) return null;
-    const db = readDb();
-    return db.trackedUsers?.[username.toLowerCase()] || null;
-  },
-
-  saveTrackedUser(userData) {
-    if (!userData || !userData.username) return null;
-    const db = readDb();
-    if (!db.trackedUsers) db.trackedUsers = {};
-
-    const key = userData.username.toLowerCase();
-    const existing = db.trackedUsers[key] || {};
-
-    db.trackedUsers[key] = {
-      ...existing,
-      ...userData,
-      username: userData.username,
-      updatedAt: new Date().toISOString()
-    };
-
-    writeDb(db);
-    return db.trackedUsers[key];
-  },
-
-  removeTrackedUser(username) {
-    if (!username) return false;
-    const db = readDb();
-    if (!db.trackedUsers) return false;
-    delete db.trackedUsers[username.toLowerCase()];
-    writeDb(db);
-    return true;
-  },
-
-  getProgressRequests() {
-    const db = readDb();
-    return (db.progressRequests || []).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  },
-
-  createProgressRequest({ targetUsername, requesterName = 'Anonymous', message = '' }) {
-    if (!targetUsername) return null;
-    const db = readDb();
-    if (!Array.isArray(db.progressRequests)) db.progressRequests = [];
-
-    const newRequest = {
-      id: 'req_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
-      targetUsername: targetUsername.trim(),
-      requesterName: requesterName.trim() || 'Anonymous Developer',
-      message: message.trim() || `Requested to inspect ${targetUsername}'s project completion progress`,
-      status: 'completed', // Immediately fulfilled upon inspection
-      createdAt: new Date().toISOString()
-    };
-
-    db.progressRequests.unshift(newRequest);
-    writeDb(db);
-    return newRequest;
   }
 };
