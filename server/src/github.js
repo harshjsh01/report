@@ -33,6 +33,20 @@ export class GitHubService {
   }
 
   /**
+   * Fetch any public user profile by username (or authenticated user if omitted)
+   */
+  async getUserProfile(username = null) {
+    try {
+      const endpoint = username ? `/users/${username}` : (this.token ? '/user' : null);
+      if (!endpoint) return null;
+      const res = await this.client.get(endpoint);
+      return res.data;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  /**
    * Fetch ALL repositories for user (owned, private, collaborated, organization, and contributed)
    */
   async getRepositories(username = null) {

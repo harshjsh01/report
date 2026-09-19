@@ -61,6 +61,66 @@ app.post('/api/settings', (req, res) => {
 });
 
 // -------------------------------------------------------------
+// HELPER: CALCULATE OVERALL PROGRESS STATS
+// -------------------------------------------------------------
+function calculateStatsFromRepos(repos = []) {
+  let inProgress = 0;
+  let needsPolish = 0;
+  let paused = 0;
+  let v1Complete = 0;
+  let completed = 0;
+  let archived = 0;
+  let totalStars = 0;
+  let totalForks = 0;
+
+  repos.forEach(repo => {
+    totalStars += repo.stars || 0;
+    totalForks += repo.forks || 0;
+    const status = repo.status || repo.autoStatus || (repo.archived ? 'archived' : 'in_progress');
+
+    switch (status) {
+      case 'v1_complete':
+        v1Complete++;
+        break;
+      case 'completed':
+        completed++;
+        break;
+      case 'in_progress':
+        inProgress++;
+        break;
+      case 'needs_polish':
+        needsPolish++;
+        break;
+      case 'paused':
+        paused++;
+        break;
+      case 'archived':
+        archived++;
+        break;
+      default:
+        inProgress++;
+    }
+  });
+
+  const totalFinished = v1Complete + completed;
+  const completionPercentage = repos.length > 0 ? Math.round((totalFinished / repos.length) * 100) : 0;
+
+  return {
+    totalRepos: repos.length,
+    inProgress,
+    needsPolish,
+    paused,
+    v1Complete,
+    completed,
+    archived,
+    totalFinished,
+    completionPercentage,
+    totalStars,
+    totalForks
+  };
+}
+
+// -------------------------------------------------------------
 // REPOSITORIES & PROGRESS ENDPOINTS
 // -------------------------------------------------------------
 app.get('/api/repos', async (req, res) => {
@@ -106,7 +166,8 @@ app.get('/api/repos', async (req, res) => {
           v1ReleaseTag: local.v1ReleaseTag || (assignedStatus === 'v1_complete' ? 'v1.0.0' : null)
         };
       });
-      return res.json({ repos: enriched, cached: true });
+      const stats = calculateStatsFromRepos(enriched);
+      return res.json({ repos: enriched, stats, cached: true });
     }
 
     const rawRepos = await gh.getRepositories(targetUser || null);
@@ -170,7 +231,31 @@ app.get('/api/repos', async (req, res) => {
     lastFetchTime = now;
     Storage.updateSettings({ lastSync: new Date().toISOString() });
 
-    res.json({ repos: enriched, cached: false });
+    const stats = calculateStatsFromRepos(enriched);
+
+    // Auto-record user in Community Directory
+    if (targetUser) {
+      try {
+        const profile = await gh.getUserProfile(targetUser);
+        const topLangs = Array.from(new Set(enriched.map(r => r.language).filter(Boolean))).slice(0, 4);
+        Storage.saveTrackedUser({
+          username: targetUser,
+          name: profile?.name || targetUser,
+          avatar_url: profile?.avatar_url || `https://github.com/${targetUser}.png`,
+          bio: profile?.bio || '',
+          totalRepos: enriched.length,
+          v1Complete: stats.v1Complete,
+          completed: stats.completed,
+          completionPercentage: stats.completionPercentage,
+          topLanguages: topLangs,
+          lastInspected: new Date().toISOString()
+        });
+      } catch (err) {
+        // Continue even if profile save fails
+      }
+    }
+
+    res.json({ repos: enriched, stats, cached: false });
   } catch (error) {
     console.error('Error fetching repos:', error.message);
     res.status(500).json({ error: error.message });
@@ -370,65 +455,151 @@ app.post('/api/repos/:owner/:repo/release-v1', async (req, res) => {
 
 // Overall portfolio progress statistics
 app.get('/api/stats', (req, res) => {
-  const localProjects = Storage.getAllRepoData();
   const repos = cachedRepos || [];
+  const stats = calculateStatsFromRepos(repos);
+  res.json(stats);
+});
 
-  const totalRepos = repos.length;
-  let inProgress = 0;
-  let needsPolish = 0;
-  let paused = 0;
-  let v1Complete = 0;
-  let completed = 0;
-  let archived = 0;
-  let totalStars = 0;
-  let totalForks = 0;
+// -------------------------------------------------------------
+// MULTI-USER DIRECTORY & PROGRESS REQUESTS ENDPOINTS
+// -------------------------------------------------------------
 
-  repos.forEach(repo => {
-    totalStars += repo.stars || 0;
-    totalForks += repo.forks || 0;
-    const local = localProjects[repo.full_name];
-    const status = local?.status || repo.status || repo.autoStatus || (repo.archived ? 'archived' : 'in_progress');
+// Get all tracked users in the community directory / leaderboard
+app.get('/api/users', (req, res) => {
+  const users = Storage.getTrackedUsers();
+  res.json({ users });
+});
 
-    switch (status) {
-      case 'v1_complete':
-        v1Complete++;
-        break;
-      case 'completed':
-        completed++;
-        break;
-      case 'in_progress':
-        inProgress++;
-        break;
-      case 'needs_polish':
-        needsPolish++;
-        break;
-      case 'paused':
-        paused++;
-        break;
-      case 'archived':
-        archived++;
-        break;
-      default:
-        inProgress++;
+// Track or inspect any GitHub user's progress
+app.post('/api/users/track', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username || !username.trim()) {
+      return res.status(400).json({ error: 'GitHub username is required' });
     }
-  });
 
-  const totalFinished = v1Complete + completed;
-  const completionPercentage = totalRepos > 0 ? Math.round((totalFinished / totalRepos) * 100) : 0;
+    const cleanUser = username.trim();
+    const gh = getService();
 
-  res.json({
-    totalRepos,
-    inProgress,
-    needsPolish,
-    paused,
-    v1Complete,
-    completed,
-    archived,
-    totalFinished,
-    completionPercentage,
-    totalStars,
-    totalForks
-  });
+    // Fetch user profile
+    const profile = await gh.getUserProfile(cleanUser);
+    if (!profile) {
+      return res.status(404).json({ error: `GitHub user @${cleanUser} not found` });
+    }
+
+    // Fetch user repos & auto-detect
+    const rawRepos = await gh.getRepositories(cleanUser);
+    const enriched = rawRepos.map(repo => {
+      const auto = gh.autoDetectCompletionStatus(repo);
+      return {
+        ...repo,
+        status: auto.status,
+        autoStatus: auto.status,
+        autoReason: auto.reason
+      };
+    });
+
+    const stats = calculateStatsFromRepos(enriched);
+    const topLangs = Array.from(new Set(enriched.map(r => r.language).filter(Boolean))).slice(0, 4);
+
+    const savedUser = Storage.saveTrackedUser({
+      username: profile.login,
+      name: profile.name || profile.login,
+      avatar_url: profile.avatar_url,
+      bio: profile.bio || '',
+      html_url: profile.html_url,
+      totalRepos: enriched.length,
+      v1Complete: stats.v1Complete,
+      completed: stats.completed,
+      inProgress: stats.inProgress,
+      needsPolish: stats.needsPolish,
+      completionPercentage: stats.completionPercentage,
+      topLanguages: topLangs,
+      lastInspected: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      user: savedUser,
+      stats,
+      reposCount: enriched.length
+    });
+  } catch (error) {
+    console.error('Error tracking user:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all progress check requests
+app.get('/api/users/requests', (req, res) => {
+  const requests = Storage.getProgressRequests();
+  res.json({ requests });
+});
+
+// Submit a progress check request and auto-inspect user
+app.post('/api/users/requests', async (req, res) => {
+  try {
+    const { targetUsername, requesterName, message } = req.body;
+    if (!targetUsername || !targetUsername.trim()) {
+      return res.status(400).json({ error: 'Target GitHub username is required' });
+    }
+
+    const cleanUser = targetUsername.trim();
+    const request = Storage.createProgressRequest({
+      targetUsername: cleanUser,
+      requesterName,
+      message
+    });
+
+    // Auto-inspect target user
+    let userSummary = null;
+    try {
+      const gh = getService();
+      const profile = await gh.getUserProfile(cleanUser);
+      if (profile) {
+        const rawRepos = await gh.getRepositories(cleanUser);
+        const enriched = rawRepos.map(repo => {
+          const auto = gh.autoDetectCompletionStatus(repo);
+          return {
+            ...repo,
+            status: auto.status,
+            autoStatus: auto.status,
+            autoReason: auto.reason
+          };
+        });
+
+        const stats = calculateStatsFromRepos(enriched);
+        const topLangs = Array.from(new Set(enriched.map(r => r.language).filter(Boolean))).slice(0, 4);
+
+        userSummary = Storage.saveTrackedUser({
+          username: profile.login,
+          name: profile.name || profile.login,
+          avatar_url: profile.avatar_url,
+          bio: profile.bio || '',
+          html_url: profile.html_url,
+          totalRepos: enriched.length,
+          v1Complete: stats.v1Complete,
+          completed: stats.completed,
+          inProgress: stats.inProgress,
+          needsPolish: stats.needsPolish,
+          completionPercentage: stats.completionPercentage,
+          topLanguages: topLangs,
+          lastInspected: new Date().toISOString()
+        });
+      }
+    } catch (e) {
+      console.warn('Could not auto-inspect user during request:', e.message);
+    }
+
+    res.json({
+      success: true,
+      request,
+      user: userSummary
+    });
+  } catch (error) {
+    console.error('Error creating progress request:', error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Serve frontend if built

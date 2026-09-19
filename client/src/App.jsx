@@ -6,24 +6,38 @@ import KanbanView from './components/KanbanView';
 import ProjectDetailModal from './components/ProjectDetailModal';
 import SettingsModal from './components/SettingsModal';
 import ProgressGraph from './components/ProgressGraph';
+import UserDirectory from './components/UserDirectory';
+import RequestProgressModal from './components/RequestProgressModal';
 import { 
   FolderGit2, 
   Filter, 
   Sparkles, 
   ArrowUpDown, 
-  AlertCircle,
-  PlusCircle,
-  Trophy,
-  UserCheck
+  AlertCircle, 
+  PlusCircle, 
+  Trophy, 
+  UserCheck,
+  Users,
+  ArrowLeft
 } from 'lucide-react';
 import GithubIcon from './components/GithubIcon';
 
 export default function App() {
   const [repos, setRepos] = useState([]);
-  const [stats, setStats] = useState(null);
   const [settings, setSettings] = useState({ githubUsername: '', hasToken: false });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // Active view: 'projects' | 'community'
+  const [activeTab, setActiveTab] = useState('projects');
+  // Which user's portfolio is currently being viewed
+  const [viewingUser, setViewingUser] = useState('');
+
+  // Community directory & requests state
+  const [trackedUsers, setTrackedUsers] = useState([]);
+  const [progressRequests, setProgressRequests] = useState([]);
+  const [isLoadingDirectory, setIsLoadingDirectory] = useState(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
   // Filters & UI state
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,51 +51,90 @@ export default function App() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // 1. Initial Load: Settings
+  // 1. Initial Load: Settings & Directory
   useEffect(() => {
-    async function initSettings() {
+    async function init() {
       try {
-        const res = await fetch('/api/settings');
-        if (res.ok) {
-          const data = await res.json();
+        const [settingsRes, usersRes, reqsRes] = await Promise.allSettled([
+          fetch('/api/settings'),
+          fetch('/api/users'),
+          fetch('/api/users/requests')
+        ]);
+
+        if (settingsRes.status === 'fulfilled' && settingsRes.value.ok) {
+          const data = await settingsRes.value.json();
           setSettings(data);
           if (data.githubUsername) {
+            setViewingUser(data.githubUsername);
             loadProjects(data.githubUsername);
           } else {
-            // First time: prompt to enter username
             setIsSettingsOpen(true);
           }
         }
+
+        if (usersRes.status === 'fulfilled' && usersRes.value.ok) {
+          const uData = await usersRes.value.json();
+          setTrackedUsers(uData.users || []);
+        }
+
+        if (reqsRes.status === 'fulfilled' && reqsRes.value.ok) {
+          const rData = await reqsRes.value.json();
+          setProgressRequests(rData.requests || []);
+        }
       } catch (err) {
-        console.error('Failed to load settings:', err);
+        console.error('Failed to initialize GitPulse:', err);
       }
     }
-    initSettings();
+    init();
   }, []);
 
-  // 2. Load Projects & Stats
-  const loadProjects = async (username = null, force = false) => {
+  // 2. Fetch community directory
+  const loadDirectory = async () => {
+    setIsLoadingDirectory(true);
+    try {
+      const [usersRes, reqsRes] = await Promise.allSettled([
+        fetch('/api/users'),
+        fetch('/api/users/requests')
+      ]);
+
+      if (usersRes.status === 'fulfilled' && usersRes.value.ok) {
+        const uData = await usersRes.value.json();
+        setTrackedUsers(uData.users || []);
+      }
+
+      if (reqsRes.status === 'fulfilled' && reqsRes.value.ok) {
+        const rData = await reqsRes.value.json();
+        setProgressRequests(rData.requests || []);
+      }
+    } catch (e) {
+      console.error('Error refreshing directory:', e);
+    } finally {
+      setIsLoadingDirectory(false);
+    }
+  };
+
+  // 3. Load Projects for a specified user
+  const loadProjects = async (targetUsername = null, force = false) => {
+    const userToFetch = targetUsername || viewingUser || settings.githubUsername;
+    if (!userToFetch) return;
+
     setIsLoading(true);
     setError(null);
     try {
-      const url = `/api/repos${force ? '?forceRefresh=true' : ''}${username ? `${force ? '&' : '?'}username=${username}` : ''}`;
-      const [reposRes, statsRes] = await Promise.all([
-        fetch(url),
-        fetch('/api/stats')
-      ]);
+      const url = `/api/repos${force ? '?forceRefresh=true' : ''}${userToFetch ? `${force ? '&' : '?'}username=${userToFetch}` : ''}`;
+      const reposRes = await fetch(url);
 
       if (!reposRes.ok) {
         const errData = await reposRes.json();
-        throw new Error(errData.error || 'Failed to fetch repositories from GitHub');
+        throw new Error(errData.error || `Failed to fetch repositories for @${userToFetch}`);
       }
 
       const reposData = await reposRes.json();
       setRepos(reposData.repos || []);
+      setViewingUser(userToFetch);
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
-      }
+      // Refresh directory in background to reflect newly tracked user
+      loadDirectory();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -89,7 +142,66 @@ export default function App() {
     }
   };
 
-  // 3. Update Project Status (e.g. mark v1 complete)
+  // 4. Instant Reactive Stats Calculation (immune to async race conditions)
+  const stats = useMemo(() => {
+    const totalRepos = repos.length;
+    let inProgress = 0;
+    let needsPolish = 0;
+    let paused = 0;
+    let v1Complete = 0;
+    let completed = 0;
+    let archived = 0;
+    let totalStars = 0;
+    let totalForks = 0;
+
+    repos.forEach(repo => {
+      totalStars += repo.stars || 0;
+      totalForks += repo.forks || 0;
+      const status = repo.status || repo.autoStatus || (repo.archived ? 'archived' : 'in_progress');
+
+      switch (status) {
+        case 'v1_complete':
+          v1Complete++;
+          break;
+        case 'completed':
+          completed++;
+          break;
+        case 'in_progress':
+          inProgress++;
+          break;
+        case 'needs_polish':
+          needsPolish++;
+          break;
+        case 'paused':
+          paused++;
+          break;
+        case 'archived':
+          archived++;
+          break;
+        default:
+          inProgress++;
+      }
+    });
+
+    const totalFinished = v1Complete + completed;
+    const completionPercentage = totalRepos > 0 ? Math.round((totalFinished / totalRepos) * 100) : 0;
+
+    return {
+      totalRepos,
+      inProgress,
+      needsPolish,
+      paused,
+      v1Complete,
+      completed,
+      archived,
+      totalFinished,
+      completionPercentage,
+      totalStars,
+      totalForks
+    };
+  }, [repos]);
+
+  // 5. Update Project Status (e.g. mark v1 complete)
   const handleUpdateStatus = async (owner, repoName, newStatus, extraUpdates = {}) => {
     const fullName = `${owner}/${repoName}`;
 
@@ -124,18 +236,12 @@ export default function App() {
       });
 
       if (!res.ok) throw new Error('Failed to update status on server');
-
-      // Refresh aggregate stats
-      const statsRes = await fetch('/api/stats');
-      if (statsRes.ok) {
-        setStats(await statsRes.json());
-      }
     } catch (err) {
       console.error('Error updating status:', err);
     }
   };
 
-  // 4. Save Settings
+  // 6. Save Settings
   const handleSaveSettings = async (newSettings) => {
     const res = await fetch('/api/settings', {
       method: 'POST',
@@ -146,8 +252,16 @@ export default function App() {
     const data = await res.json();
     setSettings(data);
     if (data.githubUsername) {
+      setViewingUser(data.githubUsername);
       loadProjects(data.githubUsername, true);
     }
+  };
+
+  // 7. Select user to view
+  const handleSelectUser = (username, force = false) => {
+    setViewingUser(username);
+    setActiveTab('projects');
+    loadProjects(username, force);
   };
 
   // Available languages for filter
@@ -185,6 +299,7 @@ export default function App() {
         }
 
         // Commit status filter
+        const targetActiveUser = viewingUser || settings.githubUsername;
         if (commitFilter === 'committed' && !project.user_committed) return false;
         if (commitFilter === 'not_committed' && project.user_committed) return false;
         if (commitFilter === 'contributed' && !project.is_contributed) return false;
@@ -206,7 +321,13 @@ export default function App() {
         const dateB = new Date(b.pushed_at || b.updated_at || 0).getTime();
         return dateB - dateA;
       });
-  }, [repos, searchQuery, statusFilter, languageFilter, commitFilter, sortBy]);
+  }, [repos, searchQuery, statusFilter, languageFilter, commitFilter, sortBy, viewingUser, settings.githubUsername]);
+
+  const isViewingOther = Boolean(
+    viewingUser && 
+    settings.githubUsername && 
+    viewingUser.toLowerCase() !== settings.githubUsername.toLowerCase()
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0b0f17] text-slate-100">
@@ -217,16 +338,51 @@ export default function App() {
         setSearchQuery={setSearchQuery}
         viewMode={viewMode}
         setViewMode={setViewMode}
-        onRefresh={() => loadProjects(settings.githubUsername, true)}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onRefresh={() => loadProjects(viewingUser || settings.githubUsername, true)}
         isLoading={isLoading}
         onOpenSettings={() => setIsSettingsOpen(true)}
         currentUser={settings.githubUsername}
+        viewingUser={viewingUser}
         hasToken={settings.hasToken}
+        trackedUsers={trackedUsers}
+        onSelectUser={handleSelectUser}
+        onOpenRequestModal={() => setIsRequestModalOpen(true)}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-8">
         
+        {/* Banner when viewing someone else's portfolio */}
+        {isViewingOther && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn shadow-lg shadow-amber-500/5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-mono font-bold">
+                @{viewingUser.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>Viewing @{viewingUser}'s Portfolio & Progress Report</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-normal">
+                    Guest Mode
+                  </span>
+                </p>
+                <p className="text-[11px] text-amber-400/80">
+                  Showing auto-detected completion status and live milestones for @{viewingUser}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => handleSelectUser(settings.githubUsername)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-semibold transition-all self-start sm:self-auto"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Back to My Projects (@{settings.githubUsername})</span>
+            </button>
+          </div>
+        )}
+
         {/* Error Banner */}
         {error && (
           <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center justify-between">
@@ -243,180 +399,203 @@ export default function App() {
           </div>
         )}
 
-        {/* Portfolio Stats Bar */}
-        {stats && <StatsOverview stats={stats} />}
-
-        {/* Interactive Visual Graph & Progress Matrix */}
-        {repos.length > 0 && (
-          <ProgressGraph
-            projects={repos}
-            stats={stats}
-            activeStatusFilter={statusFilter}
-            onSelectStatusFilter={setStatusFilter}
-            activeLanguageFilter={languageFilter}
-            onSelectLanguageFilter={setLanguageFilter}
-            onSelectProject={setSelectedProject}
+        {/* ========================================================= */}
+        {/* VIEW 1: COMMUNITY DIRECTORY / ALL DEVELOPERS LEADERBOARD  */}
+        {/* ========================================================= */}
+        {activeTab === 'community' ? (
+          <UserDirectory
+            users={trackedUsers}
+            requests={progressRequests}
+            currentUser={settings.githubUsername}
+            onSelectUser={handleSelectUser}
+            onRequestUser={() => setIsRequestModalOpen(true)}
+            onRefreshDirectory={loadDirectory}
+            isLoadingDirectory={isLoadingDirectory}
           />
-        )}
+        ) : (
+          /* ========================================================= */
+          /* VIEW 2: PROJECTS & INTERACTIVE PROGRESS PORTFOLIO        */
+          /* ========================================================= */
+          <>
+            {/* Portfolio Stats Bar (Always reactive & in-sync with repos) */}
+            <StatsOverview stats={stats} />
 
-        {/* Filter Controls Row */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 bg-[#0e1424] p-3 rounded-2xl border border-slate-800">
-          
-          <div className="flex items-center gap-2 flex-wrap">
-            
-            {/* Status Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-              <Filter className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-slate-400">Status:</span>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-transparent font-medium text-white focus:outline-none cursor-pointer"
-              >
-                <option value="all" className="bg-slate-900">All Statuses</option>
-                <option value="in_progress" className="bg-slate-900">🚀 In Progress</option>
-                <option value="needs_polish" className="bg-slate-900">🔍 Needs Polish</option>
-                <option value="paused" className="bg-slate-900">⏸️ Paused</option>
-                <option value="v1_complete" className="bg-slate-900">🏆 v1.0 Complete</option>
-                <option value="completed" className="bg-slate-900">✅ Completed</option>
-                <option value="archived" className="bg-slate-900">📦 Archived</option>
-              </select>
-            </div>
-
-            {/* Contribution / Commits Filter */}
-            <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-              <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-slate-400">Commits:</span>
-              <select
-                value={commitFilter}
-                onChange={(e) => setCommitFilter(e.target.value)}
-                className="bg-transparent font-medium text-white focus:outline-none cursor-pointer"
-              >
-                <option value="all" className="bg-slate-900">All Repos</option>
-                <option value="committed" className="bg-slate-900">🟢 Committed by You</option>
-                <option value="not_committed" className="bg-slate-900">⚪ No Commits by You</option>
-                <option value="contributed" className="bg-slate-900">🤝 External Contributions</option>
-              </select>
-            </div>
-
-            {/* Language Filter */}
-            {languages.length > 0 && (
-              <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
-                <span className="text-slate-400">Language:</span>
-                <select
-                  value={languageFilter}
-                  onChange={(e) => setLanguageFilter(e.target.value)}
-                  className="bg-transparent font-medium text-white focus:outline-none cursor-pointer"
-                >
-                  <option value="all" className="bg-slate-900">All Languages</option>
-                  {languages.map(lang => (
-                    <option key={lang} value={lang} className="bg-slate-900">{lang}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-          </div>
-
-          {/* Sort Control & Count */}
-          <div className="flex items-center justify-between sm:justify-end gap-3 text-xs">
-            <span className="text-slate-400">
-              Showing <span className="font-bold text-white">{filteredProjects.length}</span> of {repos.length} repos
-            </span>
-
-            <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="bg-transparent font-medium text-white focus:outline-none cursor-pointer"
-              >
-                <option value="pushed" className="bg-slate-900">Recently Active</option>
-                <option value="stars" className="bg-slate-900">Most Stars</option>
-                <option value="name" className="bg-slate-900">Project Name</option>
-                <option value="status" className="bg-slate-900">Status</option>
-              </select>
-            </div>
-          </div>
-
-        </div>
-
-        {/* View Switch: Grid vs Kanban */}
-        {isLoading && repos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center animate-spin">
-              <FolderGit2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-white">Inspecting your GitHub Projects...</h3>
-            <p className="text-xs text-slate-400">Auditing repositories, task checklists, and commits</p>
-          </div>
-        ) : filteredProjects.length === 0 ? (
-          <div className="text-center py-16 px-4 bg-[#0e1424] border border-slate-800 rounded-3xl space-y-4 max-w-lg mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 mx-auto">
-              <FolderGit2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-base font-bold text-white">No projects found</h3>
-            <p className="text-xs text-slate-400">
-              {settings.githubUsername 
-                ? 'Try adjusting your search query or filters, or hit "Sync" in the navigation bar.'
-                : 'Connect your GitHub username to start auditing and completing your projects!'}
-            </p>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition-all"
-            >
-              <GithubIcon className="w-4 h-4" />
-              <span>Configure GitHub Username</span>
-            </button>
-          </div>
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredProjects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onUpdateStatus={handleUpdateStatus}
+            {/* Interactive Visual Graph & Progress Matrix */}
+            {repos.length > 0 && (
+              <ProgressGraph
+                projects={repos}
+                stats={stats}
+                activeStatusFilter={statusFilter}
+                onSelectStatusFilter={setStatusFilter}
+                activeLanguageFilter={languageFilter}
+                onSelectLanguageFilter={setLanguageFilter}
                 onSelectProject={setSelectedProject}
               />
-            ))}
-          </div>
-        ) : (
-          <KanbanView
-            projects={filteredProjects}
-            onUpdateStatus={handleUpdateStatus}
-            onSelectProject={setSelectedProject}
-          />
+            )}
+
+            {/* Filter Controls Row */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6 bg-[#0e1424] p-3 rounded-2xl border border-slate-800">
+              
+              <div className="flex items-center gap-2 flex-wrap">
+                
+                {/* Status Filter */}
+                <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                  <Filter className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-slate-400">Status:</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-transparent font-medium text-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="all" className="bg-slate-900">All Statuses</option>
+                    <option value="in_progress" className="bg-slate-900">🚀 In Progress</option>
+                    <option value="needs_polish" className="bg-slate-900">🔍 Needs Polish</option>
+                    <option value="paused" className="bg-slate-900">⏸️ Paused</option>
+                    <option value="v1_complete" className="bg-slate-900">🏆 v1.0 Complete</option>
+                    <option value="completed" className="bg-slate-900">✅ Completed</option>
+                    <option value="archived" className="bg-slate-900">📦 Archived</option>
+                  </select>
+                </div>
+
+                {/* Contribution / Commits Filter */}
+                <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-slate-400">Commits:</span>
+                  <select
+                    value={commitFilter}
+                    onChange={(e) => setCommitFilter(e.target.value)}
+                    className="bg-transparent font-medium text-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="all" className="bg-slate-900">All Repos</option>
+                    <option value="committed" className="bg-slate-900">🟢 Committed by @{viewingUser || 'user'}</option>
+                    <option value="not_committed" className="bg-slate-900">⚪ No Commits by @{viewingUser || 'user'}</option>
+                    <option value="contributed" className="bg-slate-900">🤝 External Contributions</option>
+                  </select>
+                </div>
+
+                {/* Language Filter */}
+                {languages.length > 0 && (
+                  <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+                    <span className="text-slate-400">Language:</span>
+                    <select
+                      value={languageFilter}
+                      onChange={(e) => setLanguageFilter(e.target.value)}
+                      className="bg-transparent font-medium text-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="all" className="bg-slate-900">All Languages</option>
+                      {languages.map(lang => (
+                        <option key={lang} value={lang} className="bg-slate-900">{lang}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Sort Control & Count */}
+              <div className="flex items-center justify-between sm:justify-end gap-3 text-xs">
+                <span className="text-slate-400">
+                  Showing <span className="font-bold text-white">{filteredProjects.length}</span> of {repos.length} repos
+                </span>
+
+                <div className="flex items-center gap-1.5 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="bg-transparent font-medium text-white focus:outline-none cursor-pointer"
+                  >
+                    <option value="pushed" className="bg-slate-900">Recently Active</option>
+                    <option value="stars" className="bg-slate-900">Most Stars</option>
+                    <option value="name" className="bg-slate-900">Project Name</option>
+                    <option value="status" className="bg-slate-900">Status</option>
+                  </select>
+                </div>
+              </div>
+
+            </div>
+
+            {/* View Switch: Grid vs Kanban */}
+            {isLoading && repos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center animate-spin">
+                  <FolderGit2 className="w-6 h-6" />
+                </div>
+                <h3 className="text-base font-bold text-white">Inspecting GitHub Projects...</h3>
+                <p className="text-xs text-slate-400">
+                  Reading repositories, live deployments, and markdown tasks for @{viewingUser || 'user'}
+                </p>
+              </div>
+            ) : filteredProjects.length === 0 ? (
+              <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-3xl p-12 text-center space-y-3">
+                <p className="text-sm font-semibold text-slate-300">No repositories found matching current filters.</p>
+                <p className="text-xs text-slate-500">Try clearing filters or search query to view all repositories.</p>
+                <button
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setLanguageFilter('all');
+                    setCommitFilter('all');
+                    setSearchQuery('');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-semibold transition-all"
+                >
+                  Reset All Filters
+                </button>
+              </div>
+            ) : viewMode === 'kanban' ? (
+              <KanbanView
+                projects={filteredProjects}
+                onSelectProject={setSelectedProject}
+                onUpdateStatus={handleUpdateStatus}
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filteredProjects.map((project) => (
+                  <ProjectCard
+                    key={project.id || project.full_name}
+                    project={project}
+                    onOpenDetail={setSelectedProject}
+                    onUpdateStatus={handleUpdateStatus}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
 
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-[#0d131f] py-6 px-4 text-center text-xs text-slate-500">
-        <p className="flex items-center justify-center gap-2">
-          <span>GitPulse Tracker & Completion Engine</span>
-          <span>•</span>
-          <span className="text-emerald-400 font-semibold">Drive all projects to 100% & Version 1.0</span>
-        </p>
-      </footer>
-
-      {/* Project Detail Modal */}
+      {/* Deep-Dive Project Detail Drawer */}
       {selectedProject && (
         <ProjectDetailModal
           project={selectedProject}
+          isOpen={Boolean(selectedProject)}
           onClose={() => setSelectedProject(null)}
           onUpdateStatus={handleUpdateStatus}
-          hasToken={settings.hasToken}
+          currentUser={viewingUser || settings.githubUsername}
         />
       )}
 
       {/* Settings Modal */}
-      {isSettingsOpen && (
-        <SettingsModal
-          currentSettings={settings}
-          onSaveSettings={handleSaveSettings}
-          onClose={() => setIsSettingsOpen(false)}
-        />
-      )}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onSave={handleSaveSettings}
+      />
+
+      {/* Request Progress Modal */}
+      <RequestProgressModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        currentUser={settings.githubUsername}
+        onProgressInspected={(userObj) => {
+          loadDirectory();
+          if (userObj?.username) {
+            handleSelectUser(userObj.username, true);
+          }
+        }}
+      />
 
     </div>
   );
