@@ -65,10 +65,7 @@ export default function App() {
     setError(null);
     try {
       const url = `/api/repos${force ? '?forceRefresh=true' : ''}${username ? `${force ? '&' : '?'}username=${username}` : ''}`;
-      const [reposRes, statsRes] = await Promise.all([
-        fetch(url),
-        fetch('/api/stats')
-      ]);
+      const reposRes = await fetch(url);
 
       if (!reposRes.ok) {
         const errData = await reposRes.json();
@@ -76,11 +73,17 @@ export default function App() {
       }
 
       const reposData = await reposRes.json();
-      setRepos(reposData.repos || []);
+      const loadedRepos = reposData.repos || [];
+      setRepos(loadedRepos);
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json();
-        setStats(statsData);
+      if (reposData.stats) {
+        setStats(reposData.stats);
+      } else {
+        const statsRes = await fetch('/api/stats');
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setStats(statsData);
+        }
       }
     } catch (err) {
       setError(err.message);
@@ -149,6 +152,65 @@ export default function App() {
       loadProjects(data.githubUsername, true);
     }
   };
+
+  // Real-time computed stats directly synchronized with loaded repositories
+  const computedStats = useMemo(() => {
+    const totalRepos = repos.length;
+    let inProgress = 0;
+    let needsPolish = 0;
+    let paused = 0;
+    let v1Complete = 0;
+    let completed = 0;
+    let archived = 0;
+    let totalStars = 0;
+    let totalForks = 0;
+
+    repos.forEach(repo => {
+      totalStars += repo.stars || 0;
+      totalForks += repo.forks || 0;
+      const status = repo.status || repo.autoStatus || (repo.archived ? 'archived' : 'in_progress');
+
+      switch (status) {
+        case 'v1_complete':
+          v1Complete++;
+          break;
+        case 'completed':
+          completed++;
+          break;
+        case 'in_progress':
+          inProgress++;
+          break;
+        case 'needs_polish':
+          needsPolish++;
+          break;
+        case 'paused':
+          paused++;
+          break;
+        case 'archived':
+          archived++;
+          break;
+        default:
+          inProgress++;
+      }
+    });
+
+    const totalFinished = v1Complete + completed;
+    const completionPercentage = totalRepos > 0 ? Math.round((totalFinished / totalRepos) * 100) : 0;
+
+    return {
+      totalRepos,
+      inProgress,
+      needsPolish,
+      paused,
+      v1Complete,
+      completed,
+      archived,
+      totalFinished,
+      completionPercentage,
+      totalStars,
+      totalForks
+    };
+  }, [repos]);
 
   // Available languages for filter
   const languages = useMemo(() => {
@@ -244,13 +306,13 @@ export default function App() {
         )}
 
         {/* Portfolio Stats Bar */}
-        {stats && <StatsOverview stats={stats} />}
+        {repos.length > 0 && <StatsOverview stats={computedStats} />}
 
         {/* Interactive Visual Graph & Progress Matrix */}
         {repos.length > 0 && (
           <ProgressGraph
             projects={repos}
-            stats={stats}
+            stats={computedStats}
             activeStatusFilter={statusFilter}
             onSelectStatusFilter={setStatusFilter}
             activeLanguageFilter={languageFilter}

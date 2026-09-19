@@ -60,6 +60,66 @@ app.post('/api/settings', (req, res) => {
   });
 });
 
+// Helper function to calculate aggregate portfolio progress statistics
+function calculatePortfolioStats(repos = [], localProjects = {}) {
+  const totalRepos = repos.length;
+  let inProgress = 0;
+  let needsPolish = 0;
+  let paused = 0;
+  let v1Complete = 0;
+  let completed = 0;
+  let archived = 0;
+  let totalStars = 0;
+  let totalForks = 0;
+
+  repos.forEach(repo => {
+    totalStars += repo.stars || 0;
+    totalForks += repo.forks || 0;
+    const local = localProjects[repo.full_name];
+    const status = local?.status || repo.status || repo.autoStatus || (repo.archived ? 'archived' : 'in_progress');
+
+    switch (status) {
+      case 'v1_complete':
+        v1Complete++;
+        break;
+      case 'completed':
+        completed++;
+        break;
+      case 'in_progress':
+        inProgress++;
+        break;
+      case 'needs_polish':
+        needsPolish++;
+        break;
+      case 'paused':
+        paused++;
+        break;
+      case 'archived':
+        archived++;
+        break;
+      default:
+        inProgress++;
+    }
+  });
+
+  const totalFinished = v1Complete + completed;
+  const completionPercentage = totalRepos > 0 ? Math.round((totalFinished / totalRepos) * 100) : 0;
+
+  return {
+    totalRepos,
+    inProgress,
+    needsPolish,
+    paused,
+    v1Complete,
+    completed,
+    archived,
+    totalFinished,
+    completionPercentage,
+    totalStars,
+    totalForks
+  };
+}
+
 // -------------------------------------------------------------
 // REPOSITORIES & PROGRESS ENDPOINTS
 // -------------------------------------------------------------
@@ -106,7 +166,8 @@ app.get('/api/repos', async (req, res) => {
           v1ReleaseTag: local.v1ReleaseTag || (assignedStatus === 'v1_complete' ? 'v1.0.0' : null)
         };
       });
-      return res.json({ repos: enriched, cached: true });
+      const stats = calculatePortfolioStats(enriched, localProjects);
+      return res.json({ repos: enriched, stats, cached: true });
     }
 
     const rawRepos = await gh.getRepositories(targetUser || null);
@@ -170,7 +231,8 @@ app.get('/api/repos', async (req, res) => {
     lastFetchTime = now;
     Storage.updateSettings({ lastSync: new Date().toISOString() });
 
-    res.json({ repos: enriched, cached: false });
+    const stats = calculatePortfolioStats(enriched, localProjects);
+    res.json({ repos: enriched, stats, cached: false });
   } catch (error) {
     console.error('Error fetching repos:', error.message);
     res.status(500).json({ error: error.message });
@@ -372,63 +434,8 @@ app.post('/api/repos/:owner/:repo/release-v1', async (req, res) => {
 app.get('/api/stats', (req, res) => {
   const localProjects = Storage.getAllRepoData();
   const repos = cachedRepos || [];
-
-  const totalRepos = repos.length;
-  let inProgress = 0;
-  let needsPolish = 0;
-  let paused = 0;
-  let v1Complete = 0;
-  let completed = 0;
-  let archived = 0;
-  let totalStars = 0;
-  let totalForks = 0;
-
-  repos.forEach(repo => {
-    totalStars += repo.stars || 0;
-    totalForks += repo.forks || 0;
-    const local = localProjects[repo.full_name];
-    const status = local?.status || repo.status || repo.autoStatus || (repo.archived ? 'archived' : 'in_progress');
-
-    switch (status) {
-      case 'v1_complete':
-        v1Complete++;
-        break;
-      case 'completed':
-        completed++;
-        break;
-      case 'in_progress':
-        inProgress++;
-        break;
-      case 'needs_polish':
-        needsPolish++;
-        break;
-      case 'paused':
-        paused++;
-        break;
-      case 'archived':
-        archived++;
-        break;
-      default:
-        inProgress++;
-    }
-  });
-
-  const totalFinished = v1Complete + completed;
-  const completionPercentage = totalRepos > 0 ? Math.round((totalFinished / totalRepos) * 100) : 0;
-
-  res.json({
-    totalRepos,
-    inProgress,
-    needsPolish,
-    paused,
-    v1Complete,
-    completed,
-    archived,
-    totalFinished,
-    completionPercentage,
-    totalStars,
-    totalForks
-  });
+  const stats = calculatePortfolioStats(repos, localProjects);
+  res.json(stats);
 });
 
 // Serve frontend if built
