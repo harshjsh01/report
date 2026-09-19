@@ -14,7 +14,7 @@ GitPulse includes a full **Community & Team Progress Directory** enabling develo
    - Click **"View Dashboard"** on any developer in the directory to instantly load their repositories, interactive SVG donut charts, and task checklists.
    - A contextual **Guest Mode Banner** indicates whose portfolio is currently loaded, with a 1-click button to return to your personal projects.
 3. **"Request / Inspect User Progress"**:
-   - Anyone can input any GitHub username (e.g. `@torvalds`, `@octocat`, a teammate, or friend).
+   - Anyone can input any GitHub username (e.g. a teammate, contributor, or collaborator).
    - Enter your name and an optional note (e.g., *"Checking your project completion rate"*).
    - GitPulse queries GitHub's API live, scans all public repositories and markdown files, executes the auto-detection engine, records the progress request, and adds them to the directory.
 4. **Instant Reactive Stats Sync**:

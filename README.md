@@ -64,7 +64,7 @@ npm run dev
 ### 2. Configure GitHub
 1. Open the web interface at `http://localhost:5000`.
 2. Click **Connect GitHub** in the top navigation bar.
-3. Enter your **GitHub Username** (e.g. `torvalds` or your handle).
+3. Enter your **GitHub Username**.
 4. *(Optional)* Paste a **Personal Access Token (PAT)** with `repo` scope to inspect private repos and publish releases directly from the UI.
 
 ---
