@@ -1,0 +1,17 @@
+{
+  "name": "gitpulse-server",
+  "version": "1.0.0",
+  "description": "Backend API for GitHub Project Progress & Completion Hub",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
